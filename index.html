@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AFKLM Route Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a crew tool, calm and exact, like a good flight bag app.
+   IDEA: the paper flight strip — each leg is a strip with its ICAO pair large.
+   PICTURE: the working search panel and the strip table, at the top.
+   COLOUR and TYPE: blue header with a red and white stripe, white panels, coral for suspended; Barlow Condensed for codes and titles, Barlow for text.
+   LAYOUT: header band with live stats, filter panel, results table; dialogs for notes, dispatch and callsign. */
+:root{color-scheme:light dark;
+--bg:light-dark(#f3f6fa,#0b1622);--panel:light-dark(#ffffff,#122233);--ink:light-dark(#0d1b2a,#e6eef7);--mut:light-dark(#53657a,#93a7bd);
+--line:light-dark(#dbe3ec,#22374d);--band:light-dark(#0a4c8c,#0a2e52);--band2:light-dark(#0d5ea8,#0e3a66);--acc:#ff6f59;--ok:light-dark(#0a7a55,#5fd3a6);
+--chip:light-dark(#e8f1fb,#183450);--focus:#ffb547}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Barlow,system-ui,sans-serif;overflow-x:clip}
+h1,h2,.code,.big{font-family:"Barlow Condensed",Barlow,sans-serif}
+a{color:inherit}
+button,select,input{font:inherit;font-size:16px;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:1240px;margin:0 auto;padding:0 max(4vw,16px)}
+header{background:linear-gradient(120deg,#002157 0%,#003a8c 55%,#00a1de 100%);color:#fff;padding:18px 0 22px;border-bottom:6px solid #e4002b;box-shadow:inset 0 -3px 0 #fff}
+.top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+h1{font-size:clamp(32px,5vw,46px);line-height:1.05;margin:0;letter-spacing:.2px}
+.sub{margin:4px 0 0;color:#cfe3f7;font-size:16px}
+.hbtn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid #ffffff55;background:#ffffff14;color:#fff;cursor:pointer;text-decoration:none}
+.hbtn:hover{background:#ffffff26}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;margin-top:18px;background:#ffffff30;border-radius:12px;overflow:hidden}
+.stats div{background:#00215799;padding:10px 14px}
+.stats b{display:block;font:700 26px/1.1 "Barlow Condensed",sans-serif;white-space:nowrap}
+.stats span{font-size:13px;color:#cfe3f7}
+.toggle{background:none;border:0;color:#cfe3f7;cursor:pointer;min-height:44px;padding:0;text-decoration:underline}
+main{padding:20px 0 48px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.grid .wide{grid-column:span 2}
+label{display:block;font-size:13px;color:var(--mut);margin-bottom:4px;font-weight:500}
+select,input[type=text],input[type=number],input[type=date]{width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+input.code{text-transform:uppercase;font-size:18px;letter-spacing:1px}
+.checks{display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.checks label{display:flex;gap:8px;align-items:center;margin:0;font-size:15px;color:var(--ink);min-height:44px;cursor:pointer}
+.checks input{width:20px;height:20px;accent-color:var(--band2)}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.btn{min-height:44px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-weight:600}
+.btn.pri{background:var(--band2);border-color:var(--band2);color:#fff}
+.btn:hover{filter:brightness(1.05)}
+.count{margin:18px 2px 8px;color:var(--mut);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.count b{color:var(--ink)}
+table{width:100%;border-collapse:separate;border-spacing:0 6px}
+th{font-size:13px;color:var(--mut);text-align:left;font-weight:500;padding:0 10px;white-space:nowrap}
+th button{background:none;border:0;padding:4px 0;color:inherit;cursor:pointer;font-size:13px}
+td{background:var(--panel);padding:10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);vertical-align:middle}
+td:first-child{border-left:4px solid var(--band2);border-radius:10px 0 0 10px}
+td:last-child{border-right:1px solid var(--line);border-radius:0 10px 10px 0}
+tr.sus td:first-child{border-left-color:var(--acc)}
+.big{font-size:22px;font-weight:700;letter-spacing:.5px}
+.dim{color:var(--mut);font-size:13px}
+.big{display:block;line-height:1.15}.apt{display:block;font-size:12px;color:var(--mut);max-width:15em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.num{text-align:right;white-space:nowrap}
+.rk{display:inline-block;padding:2px 9px;border-radius:99px;background:var(--chip);font-weight:600;font-size:14px;white-space:nowrap}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:6px;background:var(--chip);margin:2px 4px 0 0;white-space:nowrap}
+.tag.sus{background:#ff6f5922;color:var(--acc)}
+.tag.d3{color:var(--ok)}
+.act{display:flex;gap:6px;flex-wrap:wrap}
+.act .btn{min-height:40px;padding:0 12px;font-size:15px}
+.empty{padding:40px 16px;text-align:center;color:var(--mut)}
+.more{display:flex;justify-content:center;margin-top:10px}
+.foot{margin-top:28px;font-size:13px;color:var(--mut)}
+dialog{border:0;border-radius:16px;padding:0;width:min(560px,94vw);background:var(--panel);color:var(--ink);box-shadow:0 20px 60px #0006}
+dialog::backdrop{background:#04101ccc}
+.dh{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:var(--band);color:#fff}
+.dh h2{margin:0;font-size:26px}
+.dh button{background:none;border:0;color:#fff;font-size:28px;line-height:1;min-width:44px;min-height:44px;cursor:pointer}
+.db{padding:18px;display:grid;gap:12px}
+.kv{display:grid;grid-template-columns:9em minmax(0,1fr);gap:6px 12px}
+.kv dt{color:var(--mut);font-size:14px}.kv dd{margin:0}
+.pair{display:flex;align-items:center;gap:14px;justify-content:center;font:700 40px/1 "Barlow Condensed",sans-serif;padding:6px 0}
+.pair span{color:var(--mut);font-size:24px}
+.cp{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+.cp .btn{min-height:44px}
+.msg{font-size:14px;color:var(--mut);margin:0}
+.msg.err{color:var(--acc)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){
+ .grid{grid-template-columns:minmax(0,1fr)}.grid .wide{grid-column:auto}.two{grid-template-columns:minmax(0,1fr)}
+ table{font-size:14px;border-spacing:0}.stack thead{display:none}
+ .stack tr{display:grid;margin-bottom:10px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--band2);border-radius:10px;padding:8px 12px}
+ .stack tr.sus{border-left-color:var(--acc)}
+ .stack td{display:flow-root;border:0!important;border-radius:0!important;background:none;padding:3px 0;padding-inline-start:7.5em;text-align:start}
+ .stack td::before{content:attr(data-l);float:inline-start;width:7em;margin-inline-start:-7.5em;color:var(--mut);font-size:13px}
+ .stack td:empty{display:none}.apt.ph{display:none}.apt{max-width:none;white-space:normal}
+}
+@media(prefers-reduced-motion:no-preference){tbody tr{animation:in .25s ease both}@keyframes in{from{opacity:0;transform:translateY(4px)}}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header>
+ <div class="wrap">
+  <div class="top">
+   <div>
+    <h1>AFKLM Route Explorer</h1>
+    <p class="sub">Search the route database and dispatch your flight with SimBrief.</p>
+   </div>
+   <div class="act">
+    <button class="hbtn" id="openParams" type="button">Callsign</button>
+    <a class="hbtn" id="crewLink" href="#" hidden>Crew Center</a>
+   </div>
+  </div>
+  <div id="statsBox">
+   <div class="stats">
+    <div><b id="zulu">--:--:-- Z</b><span id="zdate">UTC</span></div>
+    <div><b id="sVer">—</b><span>Database version</span></div>
+    <div><b id="sLegs">—</b><span>Legs</span></div>
+    <div><b id="sRoutes">—</b><span>Routes</span></div>
+    <div><b id="sAir">—</b><span>Airlines</span></div>
+    <div><b id="sAc">—</b><span>Aircraft types</span></div>
+   </div>
+  </div>
+  <button class="toggle" id="statsToggle" type="button">Hide statistics</button>
+ </div>
+</header>
+
+<main class="wrap">
+ <form class="panel" id="filters" autocomplete="off">
+  <div class="grid">
+   <div class="wide"><label for="q">Global search</label><input type="text" id="q" placeholder="City, airport, country, flight number…"></div>
+   <div><label for="fDb">Database</label><select id="fDb"><option value="">All databases</option></select></div>
+   <div><label for="fAirline">Operating airline</label><select id="fAirline"><option value="">All airlines</option></select></div>
+   <div><label for="fAc">Aircraft type</label><select id="fAc"><option value="">All aircraft</option></select></div>
+   <div><label for="fRank">Rank unlocked</label><select id="fRank"><option value="">All ranks</option></select></div>
+   <div><label for="fTime">Flight time</label><select id="fTime">
+    <option value="">Any time</option><option value="0-60">Under 1 hr</option><option value="60-120">1–2 hrs</option>
+    <option value="120-240">2–4 hrs</option><option value="240-480">4–8 hrs</option><option value="480-720">8–12 hrs</option><option value="720-9999">12+ hrs</option></select></div>
+   <div><label for="fType">Route type</label><select id="fType"><option value="">All route types</option><option>Regional</option><option>Short Haul</option><option>Medium Haul</option><option>Long Haul</option><option>Ultra Long Haul</option><option>Codeshares</option><option>Cargo</option><option>Vintage</option></select></div>
+   <div><label for="fDep">Departure ICAO</label><input type="text" class="code" id="fDep" maxlength="4" placeholder="Any"></div>
+   <div><label for="fArr">Arrival ICAO</label><input type="text" class="code" id="fArr" maxlength="4" placeholder="Any"></div>
+  </div>
+  <div class="checks">
+   <label><input type="checkbox" id="fSus" checked> Hide suspended routes</label>
+   <label><input type="checkbox" id="f3d"> 3D airports only</label>
+  </div>
+  <div class="btns">
+   <button class="btn pri" type="submit">Search</button>
+   <button class="btn" type="reset" id="reset">Reset</button>
+  </div>
+ </form>
+
+ <div class="count" aria-live="polite"><span id="count">Loading the route database…</span><span class="dim" id="sortNote"></span></div>
+ <table class="stack" id="tbl">
+  <thead><tr>
+   <th><button type="button" data-sort="f">Flight No.</button></th><th>Aircraft</th>
+   <th><button type="button" data-sort="o">Departure</button></th><th><button type="button" data-sort="x">Arrival</button></th>
+   <th class="num"><button type="button" data-sort="t">Time</button></th><th><button type="button" data-sort="l">Airline</button></th>
+   <th><button type="button" data-sort="r">Rank</button></th><th>Notes</th><th>Actions</th>
+  </tr></thead>
+  <tbody id="rows"></tbody>
+ </table>
+ <div class="more"><button class="btn" type="button" id="more" hidden>Show more</button></div>
+ <p class="foot">Ranks unlock routes step by step: Rank 1 Regional, Rank 2 Short Haul, Rank 3 Medium Haul, Rank 4 Long Haul, Rank 5 Ultra Long Haul, Rank 6 adds Codeshares, Rank 7 adds Cargo and Vintage. Each rank includes all routes of the ranks before it. Route type follows leg flight time for KLM, Air France and Transavia: Regional up to 1 hr, Short Haul 1–3:30, Medium Haul 3:30–7, Long Haul 7–11, Ultra Long Haul over 11 hrs; Codeshares, Cargo and Vintage are route types of their own. KLM, Air France and Transavia legs without a flight time in Airtable need Rank 5. Built for the AFKLM virtual airline community; not affiliated with Air France-KLM.</p>
+</main>
+
+<dialog id="dNotes"><div class="dh"><h2>Flight notes</h2><button type="button" data-close aria-label="Close">×</button></div><div class="db" id="notesBody"></div></dialog>
+
+<dialog id="dDispatch"><div class="dh"><h2>SimBrief flight plan</h2><button type="button" data-close aria-label="Close">×</button></div>
+ <div class="db">
+  <div class="pair"><b id="dpDep">EHAM</b><span>→</span><b id="dpArr">LFPG</b></div>
+  <div class="two">
+   <div><label for="dpAc">Aircraft type</label><select id="dpAc"></select></div>
+   <div><label for="dpFlt">Flight number</label><input type="text" id="dpFlt"></div>
+  </div>
+  <div><label for="dpCs">Callsign (optional)</label><input type="text" id="dpCs" placeholder="From your parameters"></div>
+  <a class="btn pri" id="dpGo" href="#" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none">Generate OFP using SimBrief</a>
+  <p class="msg">Opens SimBrief with the route filled in. You must already be logged in to SimBrief.</p>
+ </div>
+</dialog>
+
+<dialog id="dParams"><div class="dh"><h2>Your callsign</h2><button type="button" data-close aria-label="Close">×</button></div>
+ <form class="db" id="paramsForm">
+  <div><label for="uCs">Callsign</label><input type="text" id="uCs" placeholder="KLM123"></div>
+  <button class="btn pri" type="submit">Save callsign</button>
+  <p class="msg">Filled in automatically when you open a flight in SimBrief. Saved in this browser only.</p>
+ </form>
+</dialog>
+
+<script>
+{
+const CONFIG={version:"20261124",crewCenterUrl:"",dataUrl:"routes.json",pageSize:60};
+const RANKS=["Rank 1","Rank 2","Rank 3","Rank 4","Rank 5","Rank 6","Rank 7"];
+const ICAO_AL={KL:"KLM",AF:"AFR",HV:"TRA",TO:"TVF",MP:"MPH",WA:"KLC",A5:"HOP",DL:"DAL",SB:"ACI",KQ:"KQA",AM:"AMX",G3:"GLO",SK:"SAS",WS:"WJA","6E":"IGO",MU:"CES",SV:"SVA",VS:"VIR",KE:"KAL",NW:"NWA",AZ:"AZA",XL:"VAL"};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const store={get(k){try{return localStorage.getItem("afklm."+k)||""}catch(e){return""}},set(k,v){try{localStorage.setItem("afklm."+k,v)}catch(e){}}};
+const hhmm=t=>t==null?"—":`${Math.floor(t/60)}:${String(t%60).padStart(2,"0")}`;
+// Rank needed for a leg: 1 Regional, 2 Short, 3 Medium, 4 Long, 5 Ultra Long (or no flight time), 6 Codeshares, 7 Cargo and Vintage
+const HAUL_RANK={"Regional":1,"Short Haul":2,"Medium Haul":3,"Long Haul":4,"Ultra Long Haul":5};
+const rankOf=(t,db)=>db==="Cargo"||db==="Vintage"?7:db==="Codeshares"?6:(HAUL_RANK[haul(t)]||5);
+const haul=t=>t==null?"":t<=60?"Regional":t<=210?"Short Haul":t<=420?"Medium Haul":t<=660?"Long Haul":"Ultra Long Haul";
+// Airtable aircraft names -> ICAO type codes for SimBrief (display keeps Airtable naming)
+const SB_TYPE={"A321NX":"A21N","A20N | Use A21N":"A21N","A319-100":"A319","A223":"BCS3","A221":"BCS1","DC-10":"DC10","747-400":"B744","747-200":"B742",
+ "767-300":"B763","CRJ-200":"CRJ2","MD-11":"MD11","MD-11F":"MD11","777-200":"B772","777-200F":"B77L","A380-800":"A388","B747-400F":"B744","A330-200F":"A332","TBM":"TBM9"};
+const acCode=a=>SB_TYPE[String(a).trim()]||String(a).trim();
+const HUBS={EHAM:"Amsterdam Schiphol Airport",LFPG:"Paris Charles de Gaulle Airport",LFPO:"Paris Orly Airport",EHRD:"Rotterdam The Hague Airport",EHEH:"Eindhoven Airport",LFLL:"Lyon Saint-Exupéry Airport",LFMN:"Nice Côte d'Azur Airport",LFML:"Marseille Provence Airport",LFRS:"Nantes Atlantique Airport"};
+let APT={},LEGS=[],view=[],shown=0,sortKey="",sortDir=1,lastLeg=null;
+
+// clock
+const tick=()=>{const d=new Date();$("zulu").textContent=d.toISOString().slice(11,19)+" Z";$("zdate").textContent=d.toISOString().slice(0,10)+" UTC"};
+tick();setInterval(tick,1000);
+$("sVer").textContent=CONFIG.version;
+if(CONFIG.crewCenterUrl){$("crewLink").href=CONFIG.crewCenterUrl;$("crewLink").hidden=false}
+$("statsToggle").onclick=()=>{const b=$("statsBox"),h=!b.hidden;b.hidden=h;$("statsToggle").textContent=h?"Show statistics":"Hide statistics";store.set("stats",h?"0":"1")};
+if(store.get("stats")==="0")$("statsToggle").click();
+
+const fill=(sel,vals)=>{sel.insertAdjacentHTML("beforeend",vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join(""))};
+
+fetch(CONFIG.dataUrl).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(routes=>{
+ APT={...HUBS};routes.forEach(r=>{const g=r.g||[];if(r.p&&g.length&&!/\s\/\s/.test(r.p)&&!APT[g[0][1]])APT[g[0][1]]=r.p});
+ routes.forEach((r,ri)=>{(r.g||[]).forEach(([o,x,t],li)=>{
+  const airlines=String(r.l||"").split(/\s*,\s*/).filter(Boolean);
+  LEGS.push({id:LEGS.length,ri,li,d:r.d,f:r.f||"",a:r.a||[],o,x,t,r:rankOf(t,r.d),h:["Codeshares","Cargo","Vintage"].includes(r.d)?r.d:haul(t),ap:APT[x]||"",l:r.l||"",al:airlines,n:r.n||"",p:r.p||"",c:r.c||"",y:r.y||"",s:r.s||"",m:r.m||"",z:!!r.z,u:!!r.u,
+   q:[r.g[0][0],...r.g.map(g=>g[1])].join(" → "),txt:[r.f,r.n,r.p,r.c,r.l,o,x,r.d,(r.a||[]).join(" ")].join(" ").toLowerCase()})})});
+ const uniq=f=>[...new Set(LEGS.flatMap(f))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+ const airl=uniq(l=>l.al),acs=uniq(l=>l.a);
+ fill($("fDb"),["KLM","Air France","Transavia","Transavia France","Cargo","Codeshares","Vintage"].filter(d=>LEGS.some(l=>l.d===d)));
+ fill($("fAirline"),airl);fill($("fAc"),acs);
+ $("fRank").insertAdjacentHTML("beforeend",RANKS.map((n,i)=>`<option value="${i+1}">${n}</option>`).join(""));
+ $("sLegs").textContent=LEGS.length.toLocaleString("en");$("sRoutes").textContent=routes.length.toLocaleString("en");
+ $("sAir").textContent=airl.length;$("sAc").textContent=acs.length;
+ const saved=store.get("filters");if(saved){try{const o=JSON.parse(saved);for(const k in o){const e=$(k);if(e){e.type==="checkbox"?e.checked=o[k]:e.value=o[k]}}}catch(e){}}
+ apply();
+}).catch(e=>{$("count").textContent="The route database could not be loaded. Reload the page to try again.";});
+
+const FIDS=["q","fDb","fAirline","fAc","fRank","fTime","fType","fDep","fArr","fSus","f3d"];
+function apply(){
+ const q=$("q").value.trim().toLowerCase(),db=$("fDb").value,al=$("fAirline").value,ac=$("fAc").value,rk=+$("fRank").value||0,
+  tm=$("fTime").value,ty=$("fType").value,dep=$("fDep").value.trim().toUpperCase(),arr=$("fArr").value.trim().toUpperCase(),sus=$("fSus").checked,d3=$("f3d").checked;
+ const [t0,t1]=tm?tm.split("-").map(Number):[0,0];
+ const words=q.split(/\s+/).filter(Boolean);
+ view=LEGS.filter(l=>(!db||l.d===db)&&(!al||l.al.includes(al))&&(!ac||l.a.includes(ac))&&(!rk||(l.r!=null&&l.r<=rk))
+  &&(!tm||(l.t!=null&&l.t>=t0&&l.t<t1))&&(!ty||l.h===ty)&&(!dep||l.o.startsWith(dep))&&(!arr||l.x.startsWith(arr))
+  &&(!sus||!l.u)&&(!d3||l.z)&&words.every(w=>l.txt.includes(w)));
+ if(sortKey)view.sort((a,b)=>{const A=a[sortKey],B=b[sortKey];if(A==null)return 1;if(B==null)return -1;return (typeof A==="number"?A-B:String(A).localeCompare(String(B)))*sortDir});
+ const o={};FIDS.forEach(k=>{const e=$(k);o[k]=e.type==="checkbox"?e.checked:e.value});store.set("filters",JSON.stringify(o));
+ shown=0;$("rows").innerHTML="";render();
+}
+function rowHtml(l){
+ const ac=l.a.slice(0,3).map(esc).join(", ")+(l.a.length>3?` <span class="dim">+${l.a.length-3}</span>`:"");
+ const tags=(l.u?`<span class="tag sus">Suspended</span>`:"")+(l.z?`<span class="tag d3">3D</span>`:"")+(l.s&&!l.u?`<span class="tag">${esc(l.s)}</span>`:"");
+ return `<tr class="${l.u?"sus":""}"><td><span class="code" style="font-weight:700;font-size:17px">${esc(l.f||"—")}</span><br><span class="dim">${esc(l.d)}</span></td>
+ <td>${ac||"—"}</td><td><span class="big">${esc(l.o)}</span><span class="apt ph">&nbsp;</span></td><td><span class="big">${esc(l.x)}</span><span class="apt" title="${esc(l.ap)}">${esc(l.ap)||"&nbsp;"}</span></td>
+ <td class="num"><b>${hhmm(l.t)}</b></td><td>${esc(l.l)}</td><td>${l.r?`<span class="rk">Rank ${l.r}</span>`:`<span class="dim">—</span>`}</td>
+ <td>${tags}${l.m?`<div class="dim">${esc(l.m.length>60?l.m.slice(0,58)+"…":l.m)}</div>`:""}</td>
+ <td><div class="act"><button class="btn" type="button" data-notes="${l.id}">Notes</button><button class="btn pri" type="button" data-dispatch="${l.id}">SimBrief</button></div></td></tr>`;
+}
+function render(){
+ const next=view.slice(shown,shown+CONFIG.pageSize);shown+=next.length;
+ if(!view.length)$("rows").innerHTML=`<tr><td colspan="9" class="empty">No routes match these filters. Try widening the flight time or clearing the ICAO boxes.</td></tr>`;
+ else $("rows").insertAdjacentHTML("beforeend",next.map(rowHtml).join(""));
+ $("count").innerHTML=`<span><b>${view.length.toLocaleString("en")}</b> legs found${view.length?`, showing ${shown.toLocaleString("en")}`:""}</span>`;
+ $("more").hidden=shown>=view.length;
+}
+$("more").onclick=render;
+$("filters").addEventListener("submit",e=>{e.preventDefault();apply()});
+let deb;$("filters").addEventListener("input",()=>{clearTimeout(deb);deb=setTimeout(apply,180)});
+$("reset").onclick=()=>setTimeout(()=>{$("fSus").checked=true;apply()},0);
+document.querySelectorAll("[data-sort]").forEach(b=>b.onclick=()=>{const k=b.dataset.sort;sortDir=sortKey===k?-sortDir:1;sortKey=k;
+ $("sortNote").textContent=`Sorted by ${b.textContent.toLowerCase()} ${sortDir>0?"ascending":"descending"}`;apply()});
+
+// dialogs
+document.querySelectorAll("dialog").forEach(d=>{d.addEventListener("click",e=>{if(e.target===d||e.target.closest("[data-close]"))d.close()})});
+$("rows").addEventListener("click",e=>{const n=e.target.closest("[data-notes]"),dp=e.target.closest("[data-dispatch]");
+ if(n)openNotes(LEGS[+n.dataset.notes]);if(dp)openDispatch(LEGS[+dp.dataset.dispatch])});
+function openNotes(l){
+ const kv=[["Destination",l.n],["Arrival airport",l.ap],["Country",l.c],["Route",l.q],["Flight number",l.f],["Airline",l.l],["Aircraft",l.a.join(", ")],
+  ["Flight time",hhmm(l.t)],["Rank needed","Rank "+l.r],["Route type",l.h],["Route type (Airtable)",l.y],["Season",l.s],["NOTAM",l.m],["3D airport",l.z?"Yes":"No"],["Status",l.u?"Suspended":"Active"],["Database",l.d]];
+ $("notesBody").innerHTML=`<div class="pair"><b>${esc(l.o)}</b><span>→</span><b>${esc(l.x)}</b></div><dl class="kv">${kv.filter(k=>k[1]).map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+ <button class="btn pri" type="button" id="nDisp">SimBrief</button>`;
+ $("nDisp").onclick=()=>{$("dNotes").close();openDispatch(l)};
+ $("dNotes").showModal();
+}
+const fltParts=f=>{const m=String(f).match(/([A-Z0-9]{2})\s?(\d{1,4})/);return m?{iata:m[1],num:m[2]}:{iata:"",num:""}};
+function openDispatch(l){
+ lastLeg=l;$("dpDep").textContent=l.o;$("dpArr").textContent=l.x;
+ const acs=l.a.length?l.a:["B738"];
+ $("dpAc").innerHTML=acs.map(a=>`<option value="${esc(acCode(a))}">${esc(a)}</option>`).join("");
+ const p=fltParts(l.f);$("dpFlt").value=p.iata?p.iata+" "+p.num:"";
+ $("dpCs").value=store.get("cs");upd();$("dDispatch").showModal();
+}
+function upd(){
+ if(!lastLeg)return;const p=fltParts($("dpFlt").value.toUpperCase());
+ const prm=new URLSearchParams({orig:lastLeg.o,dest:lastLeg.x,type:$("dpAc").value});
+ if(ICAO_AL[p.iata])prm.set("airline",ICAO_AL[p.iata]);if(p.num)prm.set("fltnum",p.num);
+ const cs=$("dpCs").value.trim().toUpperCase();if(cs)prm.set("callsign",cs);
+ $("dpGo").href="https://dispatch.simbrief.com/options/custom?"+prm.toString();
+}
+["dpAc","dpFlt","dpCs"].forEach(id=>$(id).addEventListener("input",upd));
+
+// callsign
+const csBtn=()=>{const c=store.get("cs");$("openParams").textContent=c?"Callsign: "+c:"Callsign"};csBtn();
+$("openParams").onclick=()=>{$("uCs").value=store.get("cs");$("dParams").showModal()};
+$("paramsForm").addEventListener("submit",e=>{e.preventDefault();store.set("cs",$("uCs").value.trim().toUpperCase());csBtn();$("dParams").close()});
+}
+</script>
+</body>
+</html>
